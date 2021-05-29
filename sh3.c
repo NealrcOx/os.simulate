@@ -63,10 +63,11 @@ int mysys(char *command);     //模拟system();
 
 void paresCommands(char * commandLine);  //最外层命令分割，分割符号为" | "
 
-void paresCommand(char * ptr, int count); //内层分割，分割符号为“  ”
+void paresCommand(char * commandLine, struct command * command,char * outer); //内层分割，分割符号为“  ”
 
-//void commandDump(command);  //打印分割命令字符串
+void commandDump(struct command * command,int cmandCount);  //打印命令，argv 和 argc
 
+void testCommand(int sumCommandCont); //检查总的命令, 与commndDump()函数结合使用
 
 //char prePath[255] = { 0 };    //存放每次发生改变的工作路径；
 //bool chdirtoprePath = false;    //工作路径改变标志，未改变就是false;
@@ -100,23 +101,54 @@ int main(void)
 int mysys(char * line)
 {
       paresCommands(line);
+			testCommand(commandCount);
       return 0;
 }
 
 void paresCommands(char * commandLine){
-  char * ptr;
-  ptr = (char * )strtok(commandLine, "|");
+  char * ptr = NULL;
+	char * savePtr = NULL;
+	commandCount = 0;
+	char buffer[64] = { 0 };
+
+	strcpy(buffer, commandLine);
+  ptr = (char * )strtok_r(buffer, "|", &savePtr);
   while(ptr != NULL){
-    paresCommand(ptr,commandCount);
+    paresCommand(commandLine,&commands[commandCount],ptr);
+		//printf("pipe:%s\n", ptr);
     commandCount++;
-    ptr = (char *)strtok(NULL, "|");
+    ptr = (char *)strtok_r(NULL, "|", &savePtr);
   }
 }
 
-void paresCommand(char * ptr, int count){
-  char * ptrNext;
-  ptrNext = strtok(ptr, " ");
-  while(ptrNext != NULL){
-    commands[count].argc++;
-  }
+void paresCommand(char * commandLine,struct command * command,char * outer){
+  char * ptrNext = NULL;
+	char * savePtr = NULL;
+	int simpleCommandCount = 0;
+	int m = 0;
+	char buffer[64] = { 0 };
+
+	strcpy(buffer, outer);
+  	ptrNext = strtok_r(buffer, " ", &savePtr);
+  		while(ptrNext != NULL){
+    		command->argv[m++] = ptrNext;
+				//printf("simple:%s\n", command->argv[0]);
+				simpleCommandCount++;
+				ptrNext = (char *)strtok_r(NULL," ", &savePtr);
+  		}
+				command->argc = simpleCommandCount;
+}
+
+void commandDump(struct command * command,int cmandCount){
+		printf("commands[%d]\targc：%d\t", cmandCount, command->argc);
+		for(int i = 0 ; i < command->argc ; i++){
+			printf("%s\t", command->argv[i]);
+		}
+}
+
+void testCommand(int sumCommandCont){
+	for(int j = 0 ; j < sumCommandCont ; j++){
+		commandDump(&commands[j],j);
+	}
+	printf("\ncommandCount:%d\n",commandCount);
 }
