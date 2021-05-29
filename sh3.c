@@ -63,9 +63,9 @@ int mysys(char *command);     //模拟system();
 
 void paresCommands(char * commandLine);  //最外层命令分割，分割符号为" | "
 
-void paresCommand(char * commandLine, struct command * command,char * outer); //内层分割，分割符号为“  ”
+void paresCommand(char * commandLine, struct command * command); //内层分割，分割符号为“  ”
 
-void commandDump(struct command * command,int cmandCount);  //打印命令，argv 和 argc
+void commandDump(struct command * commandTest,int cmandCount);  //打印命令，argv 和 argc
 
 void testCommand(int sumCommandCont); //检查总的命令, 与commndDump()函数结合使用
 
@@ -89,6 +89,7 @@ int main(void)
         strCom[n] = '\0';
           if(strCom[0] != '\n')   //当第一个参数就是 回车 时，直接处理，重新输入；
             {
+							printf("strCom:%s\n", strCom);
               mysys(strCom);
                printf(">");
             }
@@ -107,48 +108,67 @@ int mysys(char * line)
 
 void paresCommands(char * commandLine){
   char * ptr = NULL;
-	char * savePtr = NULL;
-	commandCount = 0;
+	char * outPtr = NULL;
+	commandCount = 0;   //管道命令总个数
 	char buffer[64] = { 0 };
 
 	strcpy(buffer, commandLine);
-  ptr = (char * )strtok_r(buffer, "|", &savePtr);
+  ptr = (char * )strtok_r(buffer, "|", &outPtr);
   while(ptr != NULL){
-    paresCommand(commandLine,&commands[commandCount],ptr);
-		//printf("pipe:%s\n", ptr);
+    paresCommand(commandLine,&commands[commandCount]);
+		//printf("pipe:%s\n", commands[commandCount].argv[0]);
     commandCount++;
-    ptr = (char *)strtok_r(NULL, "|", &savePtr);
+    ptr = (char *)strtok_r(NULL, "|", &outPtr);
   }
 }
 
-void paresCommand(char * commandLine,struct command * command,char * outer){
+void paresCommand(char * commandLine,struct command * command){
   char * ptrNext = NULL;
-	char * savePtr = NULL;
+	char * innerPtr = NULL;
+	char * inptr = NULL;
+	char * outPPtr = NULL;
 	int simpleCommandCount = 0;
 	int m = 0;
-	char buffer[64] = { 0 };
+	char buffer2[64] = { 0 };
 
-	strcpy(buffer, outer);
-  	ptrNext = strtok_r(buffer, " ", &savePtr);
-  		while(ptrNext != NULL){
-    		command->argv[m++] = ptrNext;
-				//printf("simple:%s\n", command->argv[0]);
-				simpleCommandCount++;
-				ptrNext = (char *)strtok_r(NULL," ", &savePtr);
-  		}
-				command->argc = simpleCommandCount;
+
+	strcpy(buffer2, commandLine);
+	inptr = (char * )strtok_r(buffer2, "|", &outPPtr);
+		while( inptr != NULL){
+			if(m == commandCount){
+  			ptrNext = strtok_r(inptr, " ", &innerPtr);
+  				while(ptrNext != NULL){
+						//if((int)strlen(ptrNext) > 1){
+    					command->argv[simpleCommandCount] = ptrNext;
+		/*
+				if(m <= 1)
+					printf("simple:%s\n", command->argv[0]);
+					else
+						printf("simple:%s\n", command->argv[1]);
+		*/
+							simpleCommandCount++;
+						//}
+						ptrNext = (char *)strtok_r(NULL," ", &innerPtr);
+  				}
+					command->argc = simpleCommandCount;
+				}
+				m++;
+				inptr = (char *)strtok_r(NULL, "|", &outPPtr);
+			}
 }
 
-void commandDump(struct command * command,int cmandCount){
-		printf("commands[%d]\targc：%d\t", cmandCount, command->argc);
-		for(int i = 0 ; i < command->argc ; i++){
-			printf("%s\t", command->argv[i]);
+void commandDump(struct command * commandTest,int cmandCount){
+		printf("commands[%d]\targc:%d  argv:\t", cmandCount, commandTest->argc);
+		for(int i = 0 ; i < commandTest->argc ; i++){
+			printf("argv[%d]%s\t", i,commandTest->argv[i]);
 		}
+		printf("\n");
 }
 
 void testCommand(int sumCommandCont){
 	for(int j = 0 ; j < sumCommandCont ; j++){
 		commandDump(&commands[j],j);
+		//printf("%s\n", commands[j].argv[0]);
 	}
 	printf("\ncommandCount:%d\n",commandCount);
 }

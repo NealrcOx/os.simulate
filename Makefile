@@ -6,4 +6,4 @@ sh3.o : sh3.c
 	cc -c -g sh3.c
 .PHONY : clean
 clean :
-	-rm sh3
+	-rm sh3 sh3.o
