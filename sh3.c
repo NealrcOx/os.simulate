@@ -52,7 +52,11 @@ sh3.c: 实现shell程序，要求在第2版的基础上，添加如下功能
 	};
 
 	struct command commands[MAX_COMMANDS];
+
+	char commandtemp[256]={ 0 }; //存放分割完成的命令，每个命令带\0
 	int commandCount = 0;
+
+	int sumAddress = 0; //记录每次分割后，移动到commandTemp[]中的位置
 
 
 int mysys(char *command);     //模拟system();
@@ -61,9 +65,9 @@ int mysys(char *command);     //模拟system();
 
 //void execPipe(int childCount);  //执行管道命令
 
-void paresCommands(char * commandLine);  //最外层命令分割，分割符号为" | "
+void paresCommands( char * commandLine);  //最外层命令分割，分割符号为" | "
 
-void paresCommand(char * commandLine, struct command * command); //内层分割，分割符号为“  ”
+void paresCommand( char * commandLine, struct command * command); //内层分割，分割符号为“  ”
 
 void commandDump(struct command * commandTest,int cmandCount);  //打印命令，argv 和 argc
 
@@ -75,9 +79,10 @@ void testCommand(int sumCommandCont); //检查总的命令, 与commndDump()函�
 
 int main(void)
 {
-  char strCom[256] = { 0 };
+  char strCom[256] = {0} ; //= "cat -l | wc -l";
   int n;
   printf(">");
+
  while(fgets(strCom, 255, stdin) != NULL )
   {
     n = 0;
@@ -96,6 +101,7 @@ int main(void)
             else
               printf(">");
   }
+
   return 0;
 }
 
@@ -106,49 +112,49 @@ int mysys(char * line)
       return 0;
 }
 
-void paresCommands(char * commandLine){
+void paresCommands( char * commandLine){
   char * ptr = NULL;
 	char * outPtr = NULL;
-	commandCount = 0;   //管道命令总个数
-	char buffer[64] = { 0 };
+//	commandCount = 0;   //管道命令总个数
 
+	char buffer[64] = { 0 };
 	strcpy(buffer, commandLine);
+
   ptr = (char * )strtok_r(buffer, "|", &outPtr);
   while(ptr != NULL){
     paresCommand(commandLine,&commands[commandCount]);
-		//printf("pipe:%s\n", commands[commandCount].argv[0]);
     commandCount++;
     ptr = (char *)strtok_r(NULL, "|", &outPtr);
   }
 }
 
-void paresCommand(char * commandLine,struct command * command){
-  char * ptrNext = NULL;
-	char * innerPtr = NULL;
-	char * inptr = NULL;
-	char * outPPtr = NULL;
-	int simpleCommandCount = 0;
+void paresCommand( char * commandLine,struct command * command){
+  char * ptrNext = NULL;  	//内部分割函数返回地址
+	char * innerPtr = NULL;		//存储内部分割剩余字符串地址
+	char * inptr = NULL;			//外部分割函数返回地址
+	char * outPPtr = NULL;		//存储外部分割剩余字符串地址
+	int simpleCommandCount = 0; //被管道隔开的每个命令个数
 	int m = 0;
+
+	//保护原始命令不被修改
 	char buffer2[64] = { 0 };
-
-
 	strcpy(buffer2, commandLine);
+
 	inptr = (char * )strtok_r(buffer2, "|", &outPPtr);
 		while( inptr != NULL){
 			if(m == commandCount){
   			ptrNext = strtok_r(inptr, " ", &innerPtr);
   				while(ptrNext != NULL){
-						//if((int)strlen(ptrNext) > 1){
-    					command->argv[simpleCommandCount] = ptrNext;
-		/*
-				if(m <= 1)
-					printf("simple:%s\n", command->argv[0]);
-					else
-						printf("simple:%s\n", command->argv[1]);
-		*/
+							for(int y = 0 ; y < (int)strlen(ptrNext); y++){
+								commandtemp[sumAddress + y] = *(ptrNext + y );
+							}
+    					command->argv[simpleCommandCount] = &commandtemp[sumAddress];
+							sumAddress += (int)strlen(ptrNext) + 1;
 							simpleCommandCount++;
-						//}
 						ptrNext = (char *)strtok_r(NULL," ", &innerPtr);
+						if(ptrNext == NULL){
+							break;
+						}
   				}
 					command->argc = simpleCommandCount;
 				}
@@ -168,7 +174,6 @@ void commandDump(struct command * commandTest,int cmandCount){
 void testCommand(int sumCommandCont){
 	for(int j = 0 ; j < sumCommandCont ; j++){
 		commandDump(&commands[j],j);
-		//printf("%s\n", commands[j].argv[0]);
 	}
 	printf("\ncommandCount:%d\n",commandCount);
 }
