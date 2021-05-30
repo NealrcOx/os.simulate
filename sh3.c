@@ -73,6 +73,8 @@ void commandDump(struct command * commandTest,int cmandCount);  //打印命令�
 
 void testCommand(int sumCommandCont); //检查总的命令, 与commndDump()函数结合使用
 
+void replaceSpacialPath(char * commandLine); //替换命令中特殊的路径
+
 //char prePath[255] = { 0 };    //存放每次发生改变的工作路径；
 //bool chdirtoprePath = false;    //工作路径改变标志，未改变就是false;
 
@@ -94,7 +96,7 @@ int main(void)
         strCom[n] = '\0';
           if(strCom[0] != '\n')   //当第一个参数就是 回车 时，直接处理，重新输入；
             {
-							printf("strCom:%s\n", strCom);
+							replaceSpacialPath(strCom);
               mysys(strCom);
                printf(">");
             }
@@ -176,4 +178,31 @@ void testCommand(int sumCommandCont){
 		commandDump(&commands[j],j);
 	}
 	printf("\ncommandCount:%d\n",commandCount);
+}
+
+void replaceSpacialPath(char * commandLine){
+	char commandStrTemp[256] = { 0 };
+	char pathTemp[256] = { 0 };
+	struct passwd * my_pwd;      //指向strcut passwd结构体；
+
+	for(int j = 0 ,k = 0; j < (int)strlen(commandLine) ; j++){
+		if(*(commandLine + j) != '~')
+			{
+				commandStrTemp[k] = *(commandLine + j);
+				k++;
+			}
+			else if(*(commandLine + j) == '~')
+				{
+					my_pwd = getpwuid(getuid());
+					strcpy(pathTemp, my_pwd->pw_dir);
+					for(int i = 0 ; i < (int)strlen(pathTemp) ; i++)
+						{
+							commandStrTemp[k] = pathTemp[i];
+							k++;
+						}
+				}
+}
+			for(int temp = 0 ; temp < (int) strlen(commandStrTemp) ; temp++){
+				*(commandLine + temp) = commandStrTemp[temp];
+			}
 }
