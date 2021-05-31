@@ -61,9 +61,9 @@ sh3.c: 实现shell程序，要求在第2版的基础上，添加如下功能
 
 int mysys(char *command);     //模拟system();
 
-//void execSimple(char * command); //执行非管道命令
+void execSimple(struct command * command); //执行非管道命令
 
-//void execPipe(int childCount);  //执行管道命令
+void execPipe(int childCount);  //执行管道命令
 
 void paresCommands( char * commandLine);  //最外层命令分割，分割符号为" | "
 
@@ -75,8 +75,8 @@ void testCommand(int sumCommandCont); //检查总的命令, 与commndDump()函�
 
 void replaceSpacialPath(char * commandLine); //替换命令中特殊的路径
 
-//char prePath[255] = { 0 };    //存放每次发生改变的工作路径；
-//bool chdirtoprePath = false;    //工作路径改变标志，未改变就是false;
+char prePath[255] = { 0 };    //存放每次发生改变的工作路径；
+bool chdirtoprePath = false;    //工作路径改变标志，未改变就是false;
 
 
 int main(void)
@@ -109,8 +109,63 @@ int main(void)
 
 int mysys(char * line)
 {
+			pid_t pid;
+			int mysysStatus;  //mysys()函数的返回状态
+			char * argv2[8] = { 0 }; //存放改变后的工作路径
       paresCommands(line);
-			testCommand(commandCount);
+			switch (commandCount) {
+				case 1 :
+					printf("%d\n", commandCount);
+					if(!strcmp(commands[commandCount].argv[0],CD)){
+						char *tempPath = (char *)malloc(strlen(prePath) + 1);     //临时变量，用来存现在的工作路径；
+      			memset(tempPath, 0 , (int)sizeof(tempPath));
+      			strcat(tempPath, prePath);
+
+						getcwd(prePath, sizeof(prePath));
+						if(!strcmp(commands[commandCount].argv[1], "-"))   //cd: -;   没有实现cd -命令；
+                {
+                  if(chdirtoprePath)
+                    {
+                      argv2[0] = tempPath;
+                      chdir(argv2[0]);
+                    }
+                    else
+                      {
+                        chdir(tempPath);
+                        perror("cd");   //当没有切换国工作目录就cd -时，错误提示；
+                      }
+								}
+								free(tempPath);
+					}
+					else if(!strcmp(commands[commandCount].argv[0], EXIT)){
+                  exit(0);
+              }
+							else{
+								pid = fork();
+								if(pid < 0){
+									return (mysysStatus = -1);
+								}
+									else if(pid == 0){
+										execSimple(&commands[commandCount]);
+									}
+									else{
+										while(waitpid(pid, &mysysStatus, 0) < 0){
+                              if(errno != EINTR){
+                                  mysysStatus = -1;
+                                  break;
+                                }
+                            }
+									}
+									return mysysStatus;			//如果waitpid()执行成功，返回状态；
+							}
+					break;
+				default :
+					printf("%d\n", commandCount);
+					break;
+
+			}
+			//testCommand(commandCount);
+			commandCount = 0;    //每次执行完一个命令后清零
       return 0;
 }
 
@@ -205,4 +260,13 @@ void replaceSpacialPath(char * commandLine){
 			for(int temp = 0 ; temp < (int) strlen(commandStrTemp) ; temp++){
 				*(commandLine + temp) = commandStrTemp[temp];
 			}
+}
+
+void execSimple(struct command * command){
+	int error = execvp(command->argv[0],command->argv);
+	if(error < 0)
+		{
+				perror("execvp");    //perror()打印上一个函数错误原因；
+		}
+			_exit(127);
 }
