@@ -58,6 +58,8 @@ sh3.c: 实现shell程序，要求在第2版的基础上，添加如下功能
 
 	int sumAddress = 0; //记录每次分割后，移动到commandTemp[]中的位置
 
+	int mysysStatus;  //mysys()函数的返回状态
+
 
 int mysys(char *command);     //模拟system();
 
@@ -81,7 +83,7 @@ bool chdirtoprePath = false;    //工作路径改变标志，未改变就是fals
 
 int main(void)
 {
-  char strCom[256] = {0} ; //= "cat -l | wc -l";
+  char strCom[256] =  {0 };//"ls -a";
   int n;
   printf(">");
 
@@ -97,47 +99,55 @@ int main(void)
           if(strCom[0] != '\n')   //当第一个参数就是 回车 时，直接处理，重新输入；
             {
 							replaceSpacialPath(strCom);
-              mysys(strCom);
-               printf(">");
+              	mysys(strCom);
+               		printf(">");
             }
             else
               printf(">");
   }
-
   return 0;
 }
 
 int mysys(char * line)
 {
 			pid_t pid;
-			int mysysStatus;  //mysys()函数的返回状态
 			char * argv2[8] = { 0 }; //存放改变后的工作路径
+
       paresCommands(line);
+			//testCommand(commandCount);
+		//	printf("++++++++++++++++++++++++++++++++++++++++++++++++++\n"); //测试分界线
 			switch (commandCount) {
 				case 1 :
-					printf("%d\n", commandCount);
-					if(!strcmp(commands[commandCount].argv[0],CD)){
+					if(!strcmp(commands[commandCount - 1].argv[0],CD)){
 						char *tempPath = (char *)malloc(strlen(prePath) + 1);     //临时变量，用来存现在的工作路径；
       			memset(tempPath, 0 , (int)sizeof(tempPath));
       			strcat(tempPath, prePath);
 
 						getcwd(prePath, sizeof(prePath));
-						if(!strcmp(commands[commandCount].argv[1], "-"))   //cd: -;   没有实现cd -命令；
-                {
-                  if(chdirtoprePath)
-                    {
+						if(!strcmp(commands[commandCount - 1].argv[1], "-"))   //cd: -;   没有实现cd . or .. 命令；
+						{
+                  if(chdirtoprePath){
                       argv2[0] = tempPath;
                       chdir(argv2[0]);
                     }
-                    else
-                      {
+                    else{
                         chdir(tempPath);
                         perror("cd");   //当没有切换国工作目录就cd -时，错误提示；
                       }
 								}
+								else
+	                {
+	                   // int error = chdir(commands[commandCount - 1].argv[1]);
+	                    chdirtoprePath = true;    //当有一次更换工作路径时，就把这个标志设置为true;
+											int error = chdir(commands[commandCount - 1].argv[1]);
+	                    if(error < 0)
+	                      {
+	                        perror("chdir");
+	                      }
+	                  }
 								free(tempPath);
 					}
-					else if(!strcmp(commands[commandCount].argv[0], EXIT)){
+					else if(!strcmp(commands[commandCount - 1].argv[0], EXIT)){
                   exit(0);
               }
 							else{
@@ -146,9 +156,10 @@ int mysys(char * line)
 									return (mysysStatus = -1);
 								}
 									else if(pid == 0){
-										execSimple(&commands[commandCount]);
+										execSimple(&commands[commandCount - 1]);
 									}
 									else{
+												commandCount = 0;    //每次执行完一个命令后清零
 										while(waitpid(pid, &mysysStatus, 0) < 0){
                               if(errno != EINTR){
                                   mysysStatus = -1;
@@ -159,13 +170,27 @@ int mysys(char * line)
 									return mysysStatus;			//如果waitpid()执行成功，返回状态；
 							}
 					break;
-				default :
-					printf("%d\n", commandCount);
+				default :   //只实现了两个连续的管道命令
+					pid = fork();
+					if(pid < 0){
+						return (mysysStatus = -1);
+					}
+					else if(pid == 0){
+						execPipe(commandCount);
+					}
+					else{
+									commandCount = 0;    //每次执行完一个命令后清零
+										while(waitpid(pid, &mysysStatus, 0) < 0){
+											if(errno != EINTR){
+												mysysStatus = -1;
+												break;
+										}
+								}
+								return mysysStatus;
+					}
 					break;
 
 			}
-			//testCommand(commandCount);
-			commandCount = 0;    //每次执行完一个命令后清零
       return 0;
 }
 
@@ -269,4 +294,30 @@ void execSimple(struct command * command){
 				perror("execvp");    //perror()打印上一个函数错误原因；
 		}
 			_exit(127);
+}
+
+void  execPipe(int childCount){
+	pid_t pid;
+	int fd[2];
+	pipe(fd);
+	pid = fork();
+	if(pid < 0){
+		exit(127);
+	}
+	else if(pid == 0){
+		dup2(fd[0],0);
+		close(fd[0]);
+		close(fd[1]);
+		execSimple(&commands[commandCount - 1]);
+	}
+	dup2(fd[1],1);
+	close(fd[0]);
+	close(fd[1]);
+	execSimple(&commands[commandCount - 2]);
+	while(waitpid(pid, &mysysStatus, 0) < 0){
+		if(errno != EINTR){
+			mysysStatus = -1;
+			break;
+	}
+}
 }
