@@ -1,52 +1,61 @@
-#include<stdio.h>
-#include<string.h>
-#define CD "cd"
-#define EXIT "exit"
-#define MAX_ARGC 16
-#define MAX_COMMANDS 20
+#include <stdlib.h>
+#include <stdio.h>
+#include <pthread.h>
 
+int array[] = {1, 1, 1, 2, 2, 2};
+#define NR_TOTAL 6
+#define NR_CPU 2
+#define NR_CHILD (NR_TOTAL/NR_CPU)
 
-struct command {
-  int argc;
-  char * argv[MAX_ARGC];
-  char * input;   //用于重定向输入
-  char * output;  //用于重定向输出
+struct param {
+    int *array;
+    int start;
+    int end;
 };
 
-struct command commands[MAX_COMMANDS];
+struct result {
+    int sum;
+};
 
-int main(void){
-  char str[] = "kdl -l | lk cd";
-  char * ptr =NULL,* pptr =NULL;
-  //char * argv[10];
-  //char * a[10] = { 0 };
-  int j = 0,k = 0;
-  char * out = NULL,* inner = NULL;
-  struct command * command;
-  printf("begain:str:%s\n", str);
-  ptr = strtok_r(str, "|", &out);
-  while(ptr != NULL){
-    pptr = strtok_r(ptr, " ", &inner);
-    while(pptr != NULL){
-      printf("k:%d j:%d\n", k,j);
-      command = &commands[k];
-       command->argv[j] = pptr;
-       j++;
-      pptr = strtok_r(NULL," ", &inner);
+void *compute(void *arg)
+{
+    struct param *param;
+    struct result *result;
+    int sum = 0;
+    int i;
+
+    param = (struct param *)arg;
+    for (i = param->start; i < param->end; i++)
+        sum += param->array[i];
+
+    result = malloc(sizeof(struct result));
+    result->sum = sum;
+    return result;
+}
+
+int main()
+{
+    pthread_t workers[NR_CPU];
+    struct param params[NR_CPU];
+    int i;
+
+    for (i = 0; i < NR_CPU; i++) {
+        struct param *param;
+        param = &params[i];
+        param->array = array;
+        param->start = i * NR_CHILD;
+        param->end = (i + 1) * NR_CHILD;
+        pthread_create(&workers[i], NULL, compute, param);
     }
-    k++;
-    ptr = strtok_r(NULL, "|", &out);
-  }
-  printf("before:str:%s k:%d j:%d\n", str,k,j);
-  for (int  i = 0; i < k; i++) {
-    for(int m = 0 ; m < j;m++){
-    if(i == 0){
-    printf("%s\n", commands[i].argv[m]);
-  }
-    if(i == 1){
-      printf("%s\n", commands[i].argv[m + 2]);
-  }
-}
-}
-  return 0;
+
+    int sum = 0;
+    for (i = 0; i < NR_CPU; i++) {
+        struct result *result;
+        pthread_join(workers[i], (void **)&result);
+        sum += result->sum;
+        free(result);
+    }
+
+    printf("sum = %d\n", sum);
+    return 0;
 }
