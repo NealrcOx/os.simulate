@@ -25,12 +25,13 @@ struct result{
   struct pthreadPara resultc;
 };
 
-void print_deal_array(int * arr);   //输出数组
+void print_deal_array(int * arr);   //输出数组  测试函数
 
 void * pthread_sort(void * arg);
 
-void merge_sort(struct result * one, long long len);
+void merge_sort(int arr[], long long len);
 
+int min(int x ,int y);
 
 int main(void){
 
@@ -45,7 +46,7 @@ int main(void){
 
   pthread_t child_tid[CHILDPTHCNT];
   struct pthreadPara paras[CHILDPTHCNT];
-  struct result results[CHILDPTHCNT];
+  //struct result results[CHILDPTHCNT];
   for(int j = 0 ; j < CHILDPTHCNT ; j++){
     struct pthreadPara * para;
     para = & paras[j];
@@ -57,20 +58,20 @@ int main(void){
   }
 
   for(int j = 0 ; j < CHILDPTHCNT ; j++){
-    struct result * result;
-    pthread_join(child_tid[j],(void **)&result);
-    results[j] = * result;
-    merge_sort(&results[j], SORTARRAY);
-    free(result);
+    //struct result * result;
+    pthread_join(child_tid[j],NULL);
+    //results[j] = * result;
   }
+    merge_sort(deal_array, SORTARRAY);
+    //free(result);
 
   print_deal_array(deal_array);
   return 0;
 }
 
-void print_deal_array(void){
+void print_deal_array(int deal_array[]){
   for(long long j = 1 ; j <= SORTARRAY ; j++){
-    printf("-%10d", deal_array[j - 1]);
+    printf("%-10d", deal_array[j - 1]);
     if(j % 10 == 0){
       printf("\n");
     }
@@ -79,7 +80,7 @@ void print_deal_array(void){
 
 void * pthread_sort( void * arg){
   struct pthreadPara * para;
-  struct result * result;
+//  struct result * result;
   int temp;
     temp = 0;
 
@@ -94,18 +95,41 @@ void * pthread_sort( void * arg){
     *(para->start_address + (j + 1) * sizeof(int)) = *(para->start_address + j * sizeof(int));
     *(para->start_address + j * sizeof(int)) = temp;
   }
-  result = (struct result *)malloc(sizeof(struct result));
-  result->resultc = * para;
-  return result;
+  //result = (struct result *)malloc(sizeof(struct result));
+  //result->resultc = * para;
+  return para;
 }
 
-void merge_sort(struct result * one, long long len){
-  if(i != CHILDPTHCNT){
-    merge_sort(struct result * one, long long len);
-  }
-  else{
-    int * pre_sort_addr = NULL;
-    int * late_sort_addr = NULL;
-    
-  }
+int min(int x, int y) {
+    return x < y ? x : y;
+}
+
+void merge_sort(int arr[], long long len) {
+    int *a = arr;
+    int *b = (int *) malloc(len * sizeof(int));
+    int seg, start;
+    for (seg = 1; seg < len; seg += seg) {
+        for (start = 0; start < len; start += seg * 2) {
+            int low = start, mid = min(start + seg, len), high = min(start + seg * 2, len);
+            int k = low;
+            int start1 = low, end1 = mid;
+            int start2 = mid, end2 = high;
+            while (start1 < end1 && start2 < end2)
+                b[k++] = a[start1] < a[start2] ? a[start1++] : a[start2++];
+            while (start1 < end1)
+                b[k++] = a[start1++];
+            while (start2 < end2)
+                b[k++] = a[start2++];
+        }
+        int *temp = a;
+        a = b;
+        b = temp;
+    }
+    if (a != arr) {
+        int i;
+        for (i = 0; i < len; i++)
+            b[i] = a[i];
+        b = a;
+    }
+    free(b);
 }
